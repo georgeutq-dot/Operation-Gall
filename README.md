@@ -1,0 +1,523 @@
+<style>
+  :root{
+    --paper:#E9E1C9;
+    --paper-dark:#DED2AE;
+    --ink:#22282B;
+    --ink-soft:#4A4F45;
+    --stamp:#9B2E28;
+    --olive:#5D6B4F;
+    --gold:#A9803B;
+    --line: rgba(34,40,43,0.18);
+  }
+  *{box-sizing:border-box;}
+  .dossier{
+    background:
+      radial-gradient(ellipse at top left, rgba(0,0,0,0.05), transparent 60%),
+      var(--paper);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, rgba(0,0,0,0.015) 1px, transparent 1px, transparent 3px),
+      var(--paper);
+    color:var(--ink);
+    font-family: Georgia, 'Times New Roman', serif;
+    padding: 28px 22px 40px;
+    max-width: 760px;
+    margin: 0 auto;
+    border: 1px solid var(--line);
+  }
+  .mono{ font-family:'Courier New', Courier, monospace; letter-spacing:0.02em; }
+  .header{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px; margin-bottom: 18px;
+  }
+  .header h1{ font-size: 26px; margin:0 0 4px; font-weight:700; font-family: Georgia, serif; }
+  .header .sub{ font-size:12.5px; color:var(--ink-soft); }
+  .stamp{
+    border:3px solid var(--stamp); color:var(--stamp);
+    font-family:'Courier New', monospace; font-weight:700; font-size:11px;
+    padding:6px 10px; transform: rotate(-6deg); border-radius:3px;
+    white-space:nowrap;
+  }
+  .intro{ font-size:14.5px; line-height:1.55; margin-bottom:20px; color:var(--ink); }
+  .intro b{ color:var(--stamp); }
+
+  .boxes{ display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+  .box-chip{
+    font-family:'Courier New', monospace; font-size:11.5px;
+    border:1px solid var(--ink); padding:5px 9px; cursor:pointer;
+    background: var(--paper-dark);
+    transition: background 0.1s, color 0.1s;
+  }
+  .box-chip:hover{ background: var(--ink); color: var(--paper); }
+  .box-chip.active{ background: var(--ink); color: var(--paper); }
+  .box-chip b{ display:block; font-size:15px; }
+
+  .box-panel{
+    border: 1px solid var(--ink); background: var(--paper-dark);
+    margin-bottom: 18px; padding: 4px 0;
+  }
+  .box-panel .panel-title{
+    font-family:'Courier New', monospace; font-size:11px; letter-spacing:0.08em;
+    color:var(--ink-soft); padding: 8px 12px; border-bottom: 1px dashed var(--line);
+  }
+  .box-panel .panel-empty{
+    padding: 14px 12px; font-size:13px; color:var(--ink-soft); font-style:italic;
+  }
+  .box-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 8px 12px; border-bottom: 1px dashed var(--line);
+    font-size: 13.5px;
+  }
+  .box-item:last-child{ border-bottom:none; }
+  .box-item .box-item-word{ font-weight:700; }
+  .box-item .box-item-meaning{
+    font-size:12px; color:var(--ink-soft); margin-top:2px; font-style:italic;
+    max-width: 460px;
+  }
+  .box-item .delete-btn{
+    font-family:'Courier New', monospace; font-size:11px; font-weight:700;
+    color: var(--stamp); background:none; border:1px solid var(--stamp);
+    padding:4px 8px; cursor:pointer; white-space:nowrap; margin-left:10px;
+  }
+  .box-item .delete-btn:hover{ background:var(--stamp); color:var(--paper); }
+
+  .queue-status{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'Courier New', monospace; font-size:12px; color:var(--ink-soft);
+    margin-bottom: 10px; padding-bottom:8px; border-bottom:1px dashed var(--line);
+  }
+
+  .card-stage{ min-height: 260px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .card{
+    width:100%; max-width:480px; min-height:190px;
+    background: #F4EDD8;
+    border: 1.5px solid var(--ink);
+    box-shadow: 5px 5px 0 rgba(34,40,43,0.12);
+    padding: 22px 24px;
+    display:flex; flex-direction:column; justify-content:center;
+    cursor:pointer;
+    position:relative;
+  }
+  .card .tag{
+    position:absolute; top:10px; right:12px; font-family:'Courier New',monospace;
+    font-size:10px; color:var(--gold); letter-spacing:0.08em;
+  }
+  .card .face-label{
+    font-family:'Courier New', monospace; font-size:10.5px; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px;
+  }
+  .card .content{ font-size:22px; line-height:1.4; }
+  .card .meaning{ font-size:15.5px; margin-top:2px; color:var(--ink); }
+  .card ul.examples{ margin:12px 0 0; padding-left:18px; }
+  .card ul.examples li{ font-size:13.5px; color:var(--ink-soft); font-style:italic; margin-bottom:5px; }
+  .card .hint{ margin-top:14px; font-size:11px; color:var(--gold); font-family:'Courier New',monospace; }
+
+  .empty-state{ text-align:center; color:var(--ink-soft); font-size:14px; padding:30px 10px; }
+
+  .grade-row{ display:flex; gap:10px; margin-top:16px; justify-content:center; }
+  .btn{
+    font-family:'Courier New', monospace; font-size:13px; font-weight:700;
+    padding:9px 16px; border:1.5px solid var(--ink); background:var(--paper);
+    cursor:pointer; letter-spacing:0.03em;
+  }
+  .btn:hover{ background: var(--ink); color: var(--paper); }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+  .btn:disabled:hover{ background:var(--paper); color:var(--ink); }
+  .btn.miss{ border-color: var(--stamp); color: var(--stamp); }
+  .btn.miss:hover{ background: var(--stamp); color: var(--paper); }
+  .btn.got{ border-color: var(--olive); color: var(--olive); }
+  .btn.got:hover{ background: var(--olive); color: var(--paper); }
+
+  .section-title{
+    font-family:'Courier New', monospace; font-size:12px; letter-spacing:0.1em;
+    color:var(--ink-soft); border-bottom:1px solid var(--line); padding-bottom:6px;
+    margin: 30px 0 12px;
+  }
+
+  .add-form{ display:flex; flex-direction:column; gap:8px; }
+  .add-form .row{ display:flex; gap:8px; }
+  .add-form input, .add-form textarea{
+    font-family: Georgia, serif; font-size:14px; padding:8px 10px;
+    border:1px solid var(--ink); background:#F4EDD8; color:var(--ink); flex:1;
+  }
+  .add-form textarea{ resize:vertical; min-height:60px; font-family:'Courier New',monospace; font-size:12.5px;}
+  .add-form .btn{ align-self:flex-start; }
+  .small-note{ font-size:11.5px; color:var(--ink-soft); font-family:'Courier New',monospace; }
+  .status-msg{ font-size:12px; font-family:'Courier New',monospace; }
+  .status-msg.error{ color:var(--stamp); }
+  .status-msg.loading{ color:var(--gold); }
+
+  .checklist{ list-style:none; padding:0; margin:0; }
+  .checklist li{
+    display:flex; gap:10px; align-items:flex-start; font-size:13.5px;
+    padding:8px 0; border-bottom:1px dashed var(--line);
+  }
+  .checklist li:last-child{ border-bottom:none; }
+  .checklist .num{ font-family:'Courier New',monospace; color:var(--gold); font-weight:700; }
+  .checklist .desc{ color:var(--ink-soft); font-size:12.5px; margin-top:2px; }
+
+  .footer-note{ margin-top:26px; font-size:11.5px; color:var(--ink-soft); font-family:'Courier New',monospace; text-align:center; }
+</style>
+
+<div class="dossier">
+  <div class="header">
+    <div>
+      <h1>The Card System</h1>
+      <div class="sub mono">A LEITNER-BOX LANGUAGE TRAINER — BUILD FLUENCY THROUGH SPACED REPETITION</div>
+    </div>
+    <div class="stamp">DRILL &amp; REVIEW</div>
+  </div>
+
+  <div class="intro">
+    This trainer runs on the same core principle behind long-haul deep-cover language training:
+    <b>short daily drills on physical-style cards, sorted by how well you know them</b>, so your
+    time goes toward what you actually get wrong. Type in a single word and the card is built for
+    you — front, meaning, and three example sentences.
+  </div>
+
+  <div class="boxes" id="boxSummary"></div>
+  <div class="box-panel" id="boxPanel" style="display:none;"></div>
+
+  <div class="queue-status">
+    <span id="queueLabel">Loading deck…</span>
+    <span id="deckTotal"></span>
+  </div>
+
+  <div class="card-stage" id="cardStage"></div>
+
+  <div class="section-title">ADD A WORD</div>
+  <div class="add-form">
+    <div class="row">
+      <input id="wordInput" type="text" placeholder="Type a new word (e.g. &quot;linger&quot;)" />
+      <button class="btn" id="addBtn">+ ADD CARD</button>
+    </div>
+    <div class="small-note">The card is generated for you: front = the word, back = meaning + 3 example sentences.</div>
+    <div id="addStatus" class="status-msg"></div>
+
+    <div class="small-note" style="margin-top:10px;">Bulk add: one word per line.</div>
+    <textarea id="bulkInput" placeholder="linger
+persevere
+ambiguous"></textarea>
+    <button class="btn" id="bulkAddBtn" style="align-self:flex-start;">+ ADD FROM LIST</button>
+    <div id="bulkStatus" class="status-msg"></div>
+  </div>
+
+  <div class="section-title">THE FULL METHOD (BEYOND THE CARDS)</div>
+  <ol class="checklist" id="methodList"></ol>
+
+  <div class="footer-note">PROGRESS SAVED AUTOMATICALLY TO THIS ARTIFACT · NO ONE ELSE CAN SEE YOUR DECK</div>
+</div>
+
+<script>
+(function(){
+  const INTERVALS = {1:0, 2:1, 3:3, 4:7, 5:14};
+  const STORAGE_KEY = 'card_system_deck_v2';
+
+  const STARTER_DECK = [
+    {word:"linger", meaning:"to stay somewhere longer than necessary, often reluctant to leave", examples:[
+      "We lingered at the café long after our coffee was gone.",
+      "The smell of rain lingered in the air all evening.",
+      "She lingered by the door, unsure whether to say goodbye."
+    ]},
+    {word:"persevere", meaning:"to continue trying to do something despite difficulty", examples:[
+      "Even after failing twice, he persevered and finally passed the exam.",
+      "She persevered through years of training before her first win.",
+      "The team persevered despite the setbacks early in the season."
+    ]},
+    {word:"ambiguous", meaning:"open to more than one interpretation; not clearly defined", examples:[
+      "His answer was ambiguous, so no one knew if he agreed.",
+      "The contract's wording was ambiguous about the payment date.",
+      "She gave an ambiguous smile that could have meant anything."
+    ]},
+    {word:"candid", meaning:"honest and direct, without holding back", examples:[
+      "I appreciate how candid you were about the problems with the plan.",
+      "The interview felt refreshingly candid compared to most.",
+      "He gave a candid assessment of his own mistakes."
+    ]},
+    {word:"meticulous", meaning:"showing great attention to detail; very careful and precise", examples:[
+      "She kept meticulous records of every transaction.",
+      "The watchmaker's meticulous work took months to finish.",
+      "He was meticulous about proofreading before sending emails."
+    ]}
+  ];
+
+  let deck = [];
+  let currentCard = null;
+  let showingBack = false;
+  let selectedBox = null;
+
+  const stage = document.getElementById('cardStage');
+  const boxSummary = document.getElementById('boxSummary');
+  const boxPanel = document.getElementById('boxPanel');
+  const queueLabel = document.getElementById('queueLabel');
+  const deckTotal = document.getElementById('deckTotal');
+  const addBtn = document.getElementById('addBtn');
+  const bulkAddBtn = document.getElementById('bulkAddBtn');
+  const addStatus = document.getElementById('addStatus');
+  const bulkStatus = document.getElementById('bulkStatus');
+
+  function daysFromNow(n){ return Date.now() + n*24*60*60*1000; }
+
+  async function loadDeck(){
+    try{
+      const res = await window.storage.get(STORAGE_KEY, false);
+      if(res && res.value){ deck = JSON.parse(res.value); return; }
+    }catch(e){ /* no saved deck yet */ }
+    deck = STARTER_DECK.map((c,i)=>({
+      id: 'c'+i+'_'+Date.now(),
+      word: c.word, meaning: c.meaning, examples: c.examples,
+      box: 1, nextDue: Date.now()
+    }));
+    await saveDeck();
+  }
+
+  async function saveDeck(){
+    try{ await window.storage.set(STORAGE_KEY, JSON.stringify(deck), false); }
+    catch(e){ console.error('Save failed', e); }
+  }
+
+  function dueCards(){
+    const now = Date.now();
+    return deck.filter(c => c.nextDue <= now);
+  }
+
+  const BOX_LABELS = {1:'DAILY',2:'2-DAY',3:'3-DAY',4:'WEEKLY',5:'BI-WEEKLY'};
+
+  function renderBoxSummary(){
+    const counts = {1:0,2:0,3:0,4:0,5:0};
+    deck.forEach(c => counts[c.box] = (counts[c.box]||0) + 1);
+    boxSummary.innerHTML = [1,2,3,4,5].map(b =>
+      `<div class="box-chip${selectedBox===b?' active':''}" data-box="${b}">BOX ${b} · ${BOX_LABELS[b]}<b>${counts[b]}</b></div>`
+    ).join('');
+    boxSummary.querySelectorAll('.box-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const b = parseInt(chip.getAttribute('data-box'), 10);
+        selectedBox = (selectedBox === b) ? null : b;
+        renderBoxSummary();
+        renderBoxPanel();
+      });
+    });
+  }
+
+  function renderBoxPanel(){
+    if(selectedBox === null){
+      boxPanel.style.display = 'none';
+      boxPanel.innerHTML = '';
+      return;
+    }
+    boxPanel.style.display = 'block';
+    const cards = deck.filter(c => c.box === selectedBox);
+    let html = `<div class="panel-title">BOX ${selectedBox} · ${BOX_LABELS[selectedBox]} · ${cards.length} CARD${cards.length===1?'':'S'}</div>`;
+    if(cards.length === 0){
+      html += `<div class="panel-empty">No cards in this box.</div>`;
+    } else {
+      html += cards.map(c => `
+        <div class="box-item" data-id="${c.id}">
+          <div>
+            <div class="box-item-word">${esc(c.word)}</div>
+            <div class="box-item-meaning">${esc(c.meaning || '')}</div>
+          </div>
+          <button class="delete-btn" data-id="${c.id}">DELETE</button>
+        </div>
+      `).join('');
+    }
+    boxPanel.innerHTML = html;
+    boxPanel.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteCard(btn.getAttribute('data-id')));
+    });
+  }
+
+  async function deleteCard(id){
+    deck = deck.filter(c => c.id !== id);
+    if(currentCard && currentCard.id === id){ currentCard = null; }
+    await saveDeck();
+    renderBoxSummary();
+    renderBoxPanel();
+    renderStage();
+  }
+
+  function pickCard(){
+    const due = dueCards();
+    if(due.length === 0){ currentCard = null; return; }
+    currentCard = due[Math.floor(Math.random()*due.length)];
+    showingBack = false;
+  }
+
+  function esc(s){
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function renderStage(){
+    const due = dueCards();
+    deckTotal.textContent = `${deck.length} cards in deck`;
+
+    if(due.length === 0){
+      queueLabel.textContent = 'Nothing due right now — deck is clear.';
+      stage.innerHTML = `<div class="empty-state">No cards due for review.<br>Add a new word below, or come back later as boxes come due.</div>`;
+      return;
+    }
+
+    queueLabel.textContent = `${due.length} card${due.length===1?'':'s'} due for review`;
+
+    if(!currentCard || !due.find(c=>c.id===currentCard.id)){ pickCard(); }
+    const c = currentCard;
+
+    const backHtml = `
+      <div class="meaning">${esc(c.meaning)}</div>
+      <ul class="examples">
+        ${(c.examples||[]).map(e => `<li>${esc(e)}</li>`).join('')}
+      </ul>
+    `;
+
+    stage.innerHTML = `
+      <div class="card" id="flipCard">
+        <span class="tag">BOX ${c.box}</span>
+        <div class="face-label">${showingBack ? 'BACK' : 'FRONT'}</div>
+        <div class="content">${showingBack ? esc(c.word) : esc(c.word)}</div>
+        ${showingBack ? backHtml : ''}
+        <div class="hint">${showingBack ? '' : 'tap card to reveal meaning + examples'}</div>
+      </div>
+      ${showingBack ? `
+        <div class="grade-row">
+          <button class="btn miss" id="missBtn">MISSED IT → box 1</button>
+          <button class="btn got" id="gotBtn">GOT IT → box ${Math.min(c.box+1,5)}</button>
+        </div>` : ''
+      }
+    `;
+
+    document.getElementById('flipCard').addEventListener('click', () => {
+      if(!showingBack){ showingBack = true; renderStage(); }
+    });
+    if(showingBack){
+      document.getElementById('missBtn').addEventListener('click', () => grade(false));
+      document.getElementById('gotBtn').addEventListener('click', () => grade(true));
+    }
+  }
+
+  async function grade(correct){
+    const c = currentCard;
+    c.box = correct ? Math.min(c.box + 1, 5) : 1;
+    c.nextDue = daysFromNow(INTERVALS[c.box]);
+    await saveDeck();
+    renderBoxSummary();
+    renderBoxPanel();
+    currentCard = null;
+    renderStage();
+  }
+
+  // --- Card generation via Claude ---
+  async function generateCards(words){
+    const prompt = `For each of the following words, provide a concise dictionary-style meaning `
+      + `(one sentence, suitable for a language learner) and exactly 3 natural example sentences `
+      + `that each use the word. Words: ${JSON.stringify(words)}. `
+      + `Respond with ONLY a JSON array, no preamble, no markdown fences, in this exact shape: `
+      + `[{"word": "...", "meaning": "...", "examples": ["...", "...", "..."]}]. `
+      + `Keep the array in the same order as the input words.`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    if(!response.ok){ throw new Error('API request failed: ' + response.status); }
+    const data = await response.json();
+    const text = data.content.map(b => b.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  }
+
+  addBtn.addEventListener('click', async () => {
+    const wordInput = document.getElementById('wordInput');
+    const word = wordInput.value.trim();
+    if(!word) return;
+    addBtn.disabled = true;
+    addStatus.className = 'status-msg loading';
+    addStatus.textContent = `Generating card for "${word}"…`;
+    try{
+      const results = await generateCards([word]);
+      const r = results[0];
+      deck.push({
+        id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+        word: r.word || word, meaning: r.meaning, examples: r.examples || [],
+        box:1, nextDue: Date.now()
+      });
+      await saveDeck();
+      renderBoxSummary();
+      renderBoxPanel();
+      renderStage();
+      wordInput.value = '';
+      addStatus.textContent = `Added "${word}".`;
+      addStatus.className = 'status-msg';
+    }catch(e){
+      addStatus.className = 'status-msg error';
+      addStatus.textContent = 'Could not generate that card. Try again.';
+      console.error(e);
+    }finally{
+      addBtn.disabled = false;
+    }
+  });
+
+  bulkAddBtn.addEventListener('click', async () => {
+    const bulkInput = document.getElementById('bulkInput');
+    const words = bulkInput.value.split('\n').map(w=>w.trim()).filter(Boolean);
+    if(words.length === 0) return;
+    bulkAddBtn.disabled = true;
+    bulkStatus.className = 'status-msg loading';
+    bulkStatus.textContent = `Generating ${words.length} card${words.length===1?'':'s'}…`;
+    try{
+      const results = await generateCards(words);
+      results.forEach(r => {
+        deck.push({
+          id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+          word: r.word, meaning: r.meaning, examples: r.examples || [],
+          box:1, nextDue: Date.now()
+        });
+      });
+      await saveDeck();
+      renderBoxSummary();
+      renderBoxPanel();
+      renderStage();
+      bulkInput.value = '';
+      bulkStatus.textContent = `Added ${results.length} cards.`;
+      bulkStatus.className = 'status-msg';
+    }catch(e){
+      bulkStatus.className = 'status-msg error';
+      bulkStatus.textContent = 'Could not generate those cards. Try again.';
+      console.error(e);
+    }finally{
+      bulkAddBtn.disabled = false;
+    }
+  });
+
+  const METHOD_STEPS = [
+    {t:"Think in the language, don't translate", d:"Translation adds a step that slows you down and locks in an accent. Narrate your own actions in the target language as you do them."},
+    {t:"Drill sounds before words", d:"Isolate the specific sounds your native language doesn't have, and repeat them alone before putting them in words."},
+    {t:"Shadow native audio daily", d:"Play a short clip of native speech and speak along with it in real time, matching rhythm and pitch, not just words."},
+    {t:"Review is daily, but short", d:"10–15 focused minutes on due cards beats an hour once a week. The system above handles the scheduling for you."},
+    {t:"Immerse beyond study time", d:"Change your phone's language, listen to native media in the background, and seek real conversation as early as you can tolerate."},
+    {t:"Track what you miss, not what you know", d:"A card you get wrong twice is more valuable than ten you already have cold. Let the miss pile guide your next session."}
+  ];
+  document.getElementById('methodList').innerHTML = METHOD_STEPS.map((s,i) => `
+    <li>
+      <span class="num">${String(i+1).padStart(2,'0')}</span>
+      <div>
+        <div>${s.t}</div>
+        <div class="desc">${s.d}</div>
+      </div>
+    </li>
+  `).join('');
+
+  (async function init(){
+    await loadDeck();
+    renderBoxSummary();
+    renderStage();
+  })();
+})();
+</script>
+
