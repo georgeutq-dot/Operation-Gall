@@ -95,8 +95,9 @@
   .box-item{
     display:flex; justify-content:space-between; align-items:center;
     padding: 8px 12px; border-bottom: 1px dashed var(--line);
-    font-size: 13.5px;
+    font-size: 13.5px; cursor:pointer;
   }
+  .box-item:hover{ background: rgba(0,0,0,0.06); }
   .box-item:last-child{ border-bottom:none; }
   .box-item .box-item-word{ font-weight:700; }
   .box-item .box-item-meaning{
@@ -201,23 +202,8 @@
   <div class="intro">
     This trainer runs on the same core principle behind long-haul deep-cover language training:
     <b>short daily drills on physical-style cards, sorted by how well you know them</b>, so your
-    time goes toward what you actually get wrong. Type in a single word and the card is built for
-    you — front, meaning, and three example sentences.
-  </div>
-
-  <div class="section-title">GOOGLE AI SETUP (ONE-TIME)</div>
-  <div class="add-form">
-    <div class="row">
-      <input id="apiKeyInput" type="password" placeholder="Paste your Google AI (Gemini) API key" />
-      <button class="btn" id="saveKeyBtn">SAVE KEY</button>
-      <button class="btn miss" id="clearKeyBtn">CLEAR</button>
-    </div>
-    <div class="small-note">
-      Card generation uses Google's Gemini API. Get a free key at
-      <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--stamp);">aistudio.google.com/app/apikey</a>
-      — it's saved only in this browser's localStorage and sent directly from your browser to Google, never through Claude.
-    </div>
-    <div id="keyStatus" class="status-msg"></div>
+    time goes toward what you actually get wrong. Add a word, its meaning, and a few example
+    sentences yourself, and it enters the review cycle right away.
   </div>
 
   <div class="boxes" id="boxSummary"></div>
@@ -227,24 +213,20 @@
     <span id="queueLabel">Loading deck…</span>
     <span id="deckTotal"></span>
   </div>
+  <div id="spotCheckNote" class="status-msg" style="margin-bottom:10px;"></div>
 
   <div class="card-stage" id="cardStage"></div>
 
-  <div class="section-title">ADD A WORD</div>
+  <div class="section-title">ADD A CARD</div>
   <div class="add-form">
-    <div class="row">
-      <input id="wordInput" type="text" placeholder="Type a new word (e.g. &quot;linger&quot;)" />
-      <button class="btn" id="addBtn">+ ADD CARD</button>
-    </div>
-    <div class="small-note">The card is generated for you: front = the word, back = meaning + 3 example sentences.</div>
-    <div id="addStatus" class="status-msg"></div>
-
-    <div class="small-note" style="margin-top:10px;">Bulk add: one word per line.</div>
-    <textarea id="bulkInput" placeholder="linger
-persevere
-ambiguous"></textarea>
-    <button class="btn" id="bulkAddBtn" style="align-self:flex-start;">+ ADD FROM LIST</button>
-    <div id="bulkStatus" class="status-msg"></div>
+    <input id="manualWordInput" type="text" placeholder="Word (front of card)" />
+    <input id="manualMeaningInput" type="text" placeholder="Meaning (back of card)" />
+    <input id="manualEx1Input" type="text" placeholder="Example sentence 1" />
+    <input id="manualEx2Input" type="text" placeholder="Example sentence 2 (optional)" />
+    <input id="manualEx3Input" type="text" placeholder="Example sentence 3 (optional)" />
+    <button class="btn" id="manualAddBtn" style="align-self:flex-start;">+ ADD CARD</button>
+    <div class="small-note">Fills the card straight from what you type — no lookups, no API calls.</div>
+    <div id="manualStatus" class="status-msg"></div>
   </div>
 
   <div class="section-title">BACKUP / TRANSFER YOUR DECK</div>
@@ -268,7 +250,7 @@ ambiguous"></textarea>
 
 <script>
 (function(){
-  const INTERVALS = {1:0, 2:1, 3:3, 4:7, 5:14};
+  const INTERVALS = {1:0, 2:3, 3:7, 4:30, 5:365};
 
   const STARTER_DECK = [
     {word:"linger", meaning:"to stay somewhere longer than necessary, often reluctant to leave", examples:[
@@ -302,24 +284,20 @@ ambiguous"></textarea>
   let currentCard = null;
   let showingBack = false;
   let selectedBox = null;
+  let peeking = false;
 
   const stage = document.getElementById('cardStage');
   const boxSummary = document.getElementById('boxSummary');
   const boxPanel = document.getElementById('boxPanel');
   const queueLabel = document.getElementById('queueLabel');
   const deckTotal = document.getElementById('deckTotal');
-  const addBtn = document.getElementById('addBtn');
-  const bulkAddBtn = document.getElementById('bulkAddBtn');
-  const addStatus = document.getElementById('addStatus');
-  const bulkStatus = document.getElementById('bulkStatus');
   const saveNote = document.getElementById('saveNote');
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
   const importStatus = document.getElementById('importStatus');
-  const apiKeyInput = document.getElementById('apiKeyInput');
-  const saveKeyBtn = document.getElementById('saveKeyBtn');
-  const clearKeyBtn = document.getElementById('clearKeyBtn');
-  const keyStatus = document.getElementById('keyStatus');
+  const manualAddBtn = document.getElementById('manualAddBtn');
+  const manualStatus = document.getElementById('manualStatus');
+  const spotCheckNote = document.getElementById('spotCheckNote');
 
   const STORAGE_KEY = 'card_system_deck_v2';
 
@@ -392,12 +370,18 @@ ambiguous"></textarea>
     reader.readAsText(file);
   }
 
+  function missTargetBox(box){
+    if(box === 1) return 1;
+    if(box === 4 || box === 5) return 3;
+    return 1; // box 2 and box 3 both fall back to box 1
+  }
+
   function dueCards(){
     const now = Date.now();
     return deck.filter(c => c.nextDue <= now);
   }
 
-  const BOX_LABELS = {1:'DAILY',2:'2-DAY',3:'3-DAY',4:'WEEKLY',5:'BI-WEEKLY'};
+  const BOX_LABELS = {1:'DAILY',2:'3-DAY',3:'WEEKLY',4:'MONTHLY',5:'YEARLY'};
 
   function renderBoxSummary(){
     const counts = {1:0,2:0,3:0,4:0,5:0};
@@ -438,14 +422,30 @@ ambiguous"></textarea>
       `).join('');
     }
     boxPanel.innerHTML = html;
-    boxPanel.querySelectorAll('.delete-btn').forEach(btn => {
-      btn.addEventListener('click', () => deleteCard(btn.getAttribute('data-id')));
+    boxPanel.querySelectorAll('.box-item').forEach(row => {
+      row.addEventListener('click', () => viewCard(row.getAttribute('data-id')));
     });
+    boxPanel.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteCard(btn.getAttribute('data-id'));
+      });
+    });
+  }
+
+  function viewCard(id){
+    const c = deck.find(c => c.id === id);
+    if(!c) return;
+    currentCard = c;
+    showingBack = true;
+    peeking = true;
+    renderStage();
+    stage.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   async function deleteCard(id){
     deck = deck.filter(c => c.id !== id);
-    if(currentCard && currentCard.id === id){ currentCard = null; }
+    if(currentCard && currentCard.id === id){ currentCard = null; peeking = false; }
     await saveDeck();
     renderBoxSummary();
     renderBoxPanel();
@@ -466,8 +466,39 @@ ambiguous"></textarea>
   }
 
   function renderStage(){
-    const due = dueCards();
     deckTotal.textContent = `${deck.length} cards in deck`;
+
+    if(peeking && currentCard){
+      const c = currentCard;
+      const backHtml = `
+        <div class="meaning">${esc(c.meaning)}</div>
+        <ul class="examples">
+          ${(c.examples||[]).map(e => `<li>${esc(e)}</li>`).join('')}
+        </ul>
+      `;
+      queueLabel.textContent = `Viewing "${c.word}" from Box ${c.box}`;
+      stage.innerHTML = `
+        <div class="card">
+          <span class="tag">BOX ${c.box}</span>
+          <div class="face-label">CARD</div>
+          <div class="content">${esc(c.word)}</div>
+          ${backHtml}
+        </div>
+        <div class="grade-row">
+          <button class="btn" id="closePeekBtn">← BACK TO REVIEW</button>
+          <button class="btn miss" id="missBtn">MISSED IT → box ${missTargetBox(c.box)}</button>
+          <button class="btn got" id="gotBtn">GOT IT → box ${Math.min(c.box+1,5)}</button>
+        </div>
+      `;
+      document.getElementById('closePeekBtn').addEventListener('click', () => {
+        peeking = false; currentCard = null; renderStage();
+      });
+      document.getElementById('missBtn').addEventListener('click', () => grade(false));
+      document.getElementById('gotBtn').addEventListener('click', () => grade(true));
+      return;
+    }
+
+    const due = dueCards();
 
     if(due.length === 0){
       queueLabel.textContent = 'Nothing due right now — deck is clear.';
@@ -497,7 +528,7 @@ ambiguous"></textarea>
       </div>
       ${showingBack ? `
         <div class="grade-row">
-          <button class="btn miss" id="missBtn">MISSED IT → box 1</button>
+          <button class="btn miss" id="missBtn">MISSED IT → box ${missTargetBox(c.box)}</button>
           <button class="btn got" id="gotBtn">GOT IT → box ${Math.min(c.box+1,5)}</button>
         </div>` : ''
       }
@@ -514,26 +545,98 @@ ambiguous"></textarea>
 
   async function grade(correct){
     const c = currentCard;
-    c.box = correct ? Math.min(c.box + 1, 5) : 1;
+    c.box = correct ? Math.min(c.box + 1, 5) : missTargetBox(c.box);
     c.nextDue = daysFromNow(INTERVALS[c.box]);
     await saveDeck();
     renderBoxSummary();
     renderBoxPanel();
     currentCard = null;
+    peeking = false;
     renderStage();
   }
 
-  // --- Card generation via Google AI (Gemini) ---
-  const GEMINI_MODEL = 'gemini-3.1-flash-lite';
-  const GEMINI_KEY_STORAGE = 'card_system_gemini_key';
+  // Occasionally spot-check long-term memory: on load, there's a chance one
+  // random Box 5 card gets pulled back down to Box 1, so "mastered" words
+  // don't just sit forgotten for a year without ever being re-tested.
+  const SPOT_CHECK_PROBABILITY = 0.2;
 
-  function getApiKey(){
-    try{ return localStorage.getItem(GEMINI_KEY_STORAGE) || ''; }
-    catch(e){ return ''; }
+  async function maybeSpotCheckBox5(){
+    if(Math.random() > SPOT_CHECK_PROBABILITY) return;
+    const box5Cards = deck.filter(c => c.box === 5);
+    if(box5Cards.length === 0) return;
+    const pick = box5Cards[Math.floor(Math.random() * box5Cards.length)];
+    pick.box = 1;
+    pick.nextDue = Date.now();
+    await saveDeck();
+    if(spotCheckNote){
+      spotCheckNote.textContent = `🔁 Spot check: "${pick.word}" was pulled from Box 5 back to Box 1 for a refresh.`;
+    }
   }
 
-  function updateKeyStatus(){
-    const key = getApiKey();
-    apiKeyInput.value = key ? key : '';
-    keyStatus.className = 'status-msg';
-    keyStatus.textContent = key ? 'API key saved in this browser.' : 'No API key saved yet — card g
+  manualAddBtn.addEventListener('click', () => {
+    const wordEl = document.getElementById('manualWordInput');
+    const meaningEl = document.getElementById('manualMeaningInput');
+    const ex1El = document.getElementById('manualEx1Input');
+    const ex2El = document.getElementById('manualEx2Input');
+    const ex3El = document.getElementById('manualEx3Input');
+
+    const word = wordEl.value.trim();
+    const meaning = meaningEl.value.trim();
+    const examples = [ex1El.value.trim(), ex2El.value.trim(), ex3El.value.trim()].filter(Boolean);
+
+    if(!word || !meaning){
+      manualStatus.className = 'status-msg error';
+      manualStatus.textContent = 'A word and a meaning are required.';
+      return;
+    }
+
+    deck.push({
+      id: 'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      word, meaning, examples,
+      box: 1, nextDue: Date.now()
+    });
+    saveDeck();
+    renderBoxSummary();
+    renderBoxPanel();
+    renderStage();
+
+    wordEl.value = ''; meaningEl.value = ''; ex1El.value = ''; ex2El.value = ''; ex3El.value = '';
+    manualStatus.className = 'status-msg';
+    manualStatus.textContent = `Added "${word}".`;
+  });
+
+  exportBtn.addEventListener('click', exportDeck);
+  importInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(file){ importDeckFromFile(file); }
+    importInput.value = '';
+  });
+
+  const METHOD_STEPS = [
+    {t:"Think in the language, don't translate", d:"Translation adds a step that slows you down and locks in an accent. Narrate your own actions in the target language as you do them."},
+    {t:"Drill sounds before words", d:"Isolate the specific sounds your native language doesn't have, and repeat them alone before putting them in words."},
+    {t:"Shadow native audio daily", d:"Play a short clip of native speech and speak along with it in real time, matching rhythm and pitch, not just words."},
+    {t:"Review is daily, but short", d:"10–15 focused minutes on due cards beats an hour once a week. The system above handles the scheduling for you."},
+    {t:"Immerse beyond study time", d:"Change your phone's language, listen to native media in the background, and seek real conversation as early as you can tolerate."},
+    {t:"Track what you miss, not what you know", d:"A card you get wrong twice is more valuable than ten you already have cold. Let the miss pile guide your next session."}
+  ];
+  document.getElementById('methodList').innerHTML = METHOD_STEPS.map((s,i) => `
+    <li>
+      <span class="num">${String(i+1).padStart(2,'0')}</span>
+      <div>
+        <div>${s.t}</div>
+        <div class="desc">${s.d}</div>
+      </div>
+    </li>
+  `).join('');
+
+  (async function init(){
+    await loadDeck();
+    await maybeSpotCheckBox5();
+    renderBoxSummary();
+    renderStage();
+  })();
+})();
+</script>
+</body>
+</html>
